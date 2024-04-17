@@ -31,21 +31,32 @@ client.on('message', async (message) => {
 	let tempUrl = message.body.split(' ')[1];
 	let url = tempUrl ? tempUrl : message.body
 
+
+	function isFileExist(title, format) {
+		if (fs.existsSync(`src/database/${title}.${format}`)) {
+			return true
+		} else {
+			return false
+		}
+	}
 	async function downloadYouTube(url, format, filter) {
 		client.sendMessage(message.from, '[⏳] Loading..');
 		try {
 			let info = await ytdl.getInfo(url);
-			let title = info.videoDetails.title
-			ytdl(url, { filter: filter, format: format, quality: 'highest' }).pipe(fs.createWriteStream(`./src/database/${title}.${format}`)).on('finish', async () => {
-				let media = await MessageMedia.fromFilePath(`./src/database/${title}.${format}`);
-				media.filename = `${title}.${format}`;
+			let title = info.videoDetails.title;
+
+			if (isFileExist(title, format)) {
+				let media = MessageMedia.fromFilePath(`./src/database/${title}.${format}`);
 				await client.sendMessage(message.from, media, { sendMediaAsDocument: true });
-				client.searchMessages(message.from, info.videoDetails.title)
-			});
+			} else {
+				ytdl(url, { filter: filter, format: format, quality: 'highest' }).pipe(fs.createWriteStream(`./src/database/${title}.${format}`)).on('finish', async () => {
+					let media = await MessageMedia.fromFilePath(`./src/database/${title}.${format}`);
+					await client.sendMessage(message.from, media, { sendMediaAsDocument: true });
+				});
+			}
 		} catch (err) {
 			console.log(err);
 			client.sendMessage(message.from, '*[❎]* Failed!');
-			throw err
 		}
 	}
 
