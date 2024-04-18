@@ -1,9 +1,21 @@
+// Misc
+const fs = require('fs');
+require('dotenv').config()
+const config = require('./src/config/config.json');
+// Whatsapp
 const { Client, LocalAuth, Buttons, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
-const fs = require('fs');
-const ytdl = require('ytdl-core');
-const config = require('./src/config/config.json');
 
+// Telegram
+const TelegramBot = require('node-telegram-bot-api');
+const token = process.env.TELEGRAM_BOT;
+const tgBot = new TelegramBot(token, { polling: true });
+const solideoId = process.env.CHANNEL_ID
+process.env.NTBA_FIX_350 = true;
+// Youtube
+const ytdl = require('ytdl-core');
+
+// Main
 const client = new Client({
 	restartOnAuthFail: true,
 	puppeteer: {
@@ -50,7 +62,7 @@ client.on('message', async (message) => {
 				await client.sendMessage(message.from, media, { sendMediaAsDocument: true });
 			} else {
 				ytdl(url, { filter: filter, format: format, quality: 'highest' }).pipe(fs.createWriteStream(`./src/database/${title}.${format}`)).on('finish', async () => {
-					let media = await MessageMedia.fromFilePath(`./src/database/${title}.${format}`);
+					let media = MessageMedia.fromFilePath(`./src/database/${title}.${format}`);
 					await client.sendMessage(message.from, media, { sendMediaAsDocument: true });
 				});
 			}
@@ -60,13 +72,36 @@ client.on('message', async (message) => {
 		}
 	}
 
+	async function downloadMedia() {
+		try {
+			const audio = await message.downloadMedia();
+			const folder = process.cwd() + "/src/database/"
+			const filename = folder + audio.filename
+			fs.writeFileSync(filename, Buffer.from(audio.data, 'base64').toString('binary'), 'binary')
+			await tgBot.sendDocument(solideoId, filename)
+		} catch (error) {
+			console.log(error)
+		}
+	}
+
 	if (message.body == `${config.prefix}help`) return client.sendMessage(message.from, `*${config.name}*\n\n[🎥] : *${config.prefix}video <youtube-url>*\n[🎧] : *${config.prefix}audio <youtube-url>*\n\n*Example :*\n${config.prefix}audio https://youtu.be/abcdefghij`);
 	if (url == undefined) return;
-	if (!ytdl.validateURL(url)) return client.sendMessage(message.from, '*[❎]* Failed!, Invalid YouTube URL');
+	if ((message.body.startsWith('https://') || message.body.startsWith(`${config.prefix}audio`)) && !ytdl.validateURL(url)) return client.sendMessage(message.from, '*[❎]* Failed!, Invalid YouTube URL');
 	if (message.body.startsWith(`${config.prefix}audio`)) {
 		downloadYouTube(url, 'mp3', 'audioonly');
-	} else {
+	} else if (message.body.startsWith('https://')) {
 		downloadYouTube(url, 'mp4', 'audioandvideo');
+	}
+	if (message.hasMedia && message._data.mimetype === 'audio/mpeg') {
+		await downloadMedia()
+		client.sendMessage(message.from, '[✅] Forwarded')
+		const chat = await message.getChat()
+		chat.sendSeen()
+	}
+	if (message.body.startsWith('/judul ')) {
+		const body = message.body.slice(7)
+		const title = body.toUpperCase()
+		tgBot.sendMessage(solideoId, title)
 	}
 });
 
