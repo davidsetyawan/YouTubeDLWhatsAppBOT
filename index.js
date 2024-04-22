@@ -3,6 +3,7 @@ const fs = require('fs');
 require('dotenv').config()
 const config = require('./src/config/config.json');
 // Whatsapp
+const adminNumber = process.env.ADMIN_NUMBER
 const { Client, LocalAuth, Buttons, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 
@@ -19,7 +20,7 @@ const ytdl = require('ytdl-core');
 const client = new Client({
 	restartOnAuthFail: true,
 	puppeteer: {
-		headless: true,
+		headless: 'shell',
 		args: ['--no-sandbox', '--disable-setuid-sandbox'],
 		executablePath: `${config.executablePath}`,
 	},
@@ -37,12 +38,12 @@ client.on('qr', (qr) => {
 
 client.on('ready', () => {
 	console.log('[✅] Client is ready!');
+	client.sendMessage(adminNumber, 'Bot is ready!');
 });
 
 client.on('message', async (message) => {
 	let tempUrl = message.body.split(' ')[1];
 	let url = tempUrl ? tempUrl : message.body
-
 
 	function isFileExist(title, format) {
 		if (fs.existsSync(`src/database/${title}.${format}`)) {
@@ -73,6 +74,7 @@ client.on('message', async (message) => {
 	}
 
 	async function downloadMedia() {
+		client.sendMessage(message.from, '[⏳] Loading..');
 		try {
 			const audio = await message.downloadMedia();
 			const folder = process.cwd() + "/src/database/"
