@@ -2,17 +2,18 @@
 const fs = require('fs');
 require('dotenv').config()
 const config = require('./src/config/config.json');
+
+// Telegram
+const { Telegraf } = require('telegraf')
+const { message } = require('telegraf/filters')
+const tgBot = new Telegraf(process.env.TELEGRAM_BOT)
+const solideoId = process.env.CHANNEL_ID
+
 // Whatsapp
 const adminNumber = process.env.ADMIN_NUMBER
 const { Client, LocalAuth, Buttons, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 
-// Telegram
-const TelegramBot = require('node-telegram-bot-api');
-const token = process.env.TELEGRAM_BOT;
-const tgBot = new TelegramBot(token, { polling: true });
-const solideoId = process.env.CHANNEL_ID
-process.env.NTBA_FIX_350 = true;
 // Youtube
 const ytdl = require('ytdl-core');
 
@@ -80,7 +81,7 @@ client.on('message', async (message) => {
 			const folder = process.cwd() + "/src/database/"
 			const filename = folder + audio.filename
 			fs.writeFileSync(filename, Buffer.from(audio.data, 'base64').toString('binary'), 'binary')
-			await tgBot.sendDocument(solideoId, filename)
+			await tgBot.telegram.sendDocument(solideoId, { source: filename })
 		} catch (error) {
 			console.log(error)
 		}
@@ -103,8 +104,8 @@ client.on('message', async (message) => {
 	if (message.body.startsWith('/judul ')) {
 		const body = message.body.slice(7)
 		const title = body.toUpperCase()
-		tgBot.sendMessage(solideoId, title)
+		tgBot.telegram.sendMessage(solideoId, title)
 	}
 });
-
+tgBot.launch()
 client.initialize();
